@@ -22,13 +22,18 @@ const {
   GDRIVE_SERVICE_ACCOUNT_JSON,
   IG_USER_ID,
   IG_ACCESS_TOKEN,
-  IG_HASHTAGS = DEFAULT_HASHTAG_POOL,
+  IG_HASHTAGS = '',
+  DEFAULT_HASHTAGS = DEFAULT_HASHTAG_POOL,
   RANDOM_HASHTAGS = 'true',
   HASHTAGS_COUNT = '8',
-  IG_FIRST_COMMENT = 'больше  в тг - https://t.me/stage_style_media',
+  IG_FIRST_COMMENT = '',
+  DEFAULT_FIRST_COMMENT = 'Больше видео в нашем Telegram — ссылка в шапке профиля 👆 (или @stage_style_media)',
   SORT_ORDER = 'random',
   CLEAN_UNDERSCORES = 'false',
 } = process.env;
+
+const EFFECTIVE_HASHTAGS = IG_HASHTAGS.trim() ? IG_HASHTAGS : DEFAULT_HASHTAGS;
+const EFFECTIVE_FIRST_COMMENT = IG_FIRST_COMMENT.trim() ? IG_FIRST_COMMENT : DEFAULT_FIRST_COMMENT;
 
 function assertEnv(name, value) {
   if (!value || !String(value).trim()) {
@@ -283,9 +288,9 @@ async function main() {
 
   console.log(`Опубликовано в Instagram! Media ID: ${publishData.id}`);
 
-  if (IG_FIRST_COMMENT && IG_FIRST_COMMENT.trim()) {
+  if (EFFECTIVE_FIRST_COMMENT && EFFECTIVE_FIRST_COMMENT.trim()) {
     const commentParams = new URLSearchParams({
-      message: IG_FIRST_COMMENT.trim(),
+      message: EFFECTIVE_FIRST_COMMENT.trim(),
       access_token: igToken,
     });
     const commentResp = await fetch(
