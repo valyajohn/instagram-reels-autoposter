@@ -145,7 +145,7 @@ async function downloadDriveVideo(fileId, auth) {
 }
 
 function selectHashtags() {
-  const pool = IG_HASHTAGS.split(/[\s,]+/)
+  const pool = EFFECTIVE_HASHTAGS.split(/[\s,]+/)
     .map((t) => t.trim())
     .filter(Boolean)
     .map((t) => (t.startsWith('#') ? t : `#${t}`));
