@@ -33,12 +33,14 @@ jobs:
           GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
-          IG_HASHTAGS: ${{ secrets.IG_HASHTAGS || '#reels #reelsinstagram #viral #viralreels #trending #trendingreels #explore #explorepage #fyp #foryou #instagood #mood #dance #dancing #dancevideo #dancereels #dancevibes #moves #choreo #dancechallenge #groove #dancer #lipsync #lipsyncchallenge #singing #songvibes #musicvibes #vibe #soundon #lipdub #trendingaudio #singalong #beauty #beautytips #glam #aesthetic #glowup #pretty #fashion #style #ootd #lookbook #modelvibes #naturalbeauty' }}
-          RANDOM_HASHTAGS: 'true'
-          HASHTAGS_COUNT: '8'
-          IG_FIRST_COMMENT: ${{ secrets.IG_FIRST_COMMENT || 'Больше видео в нашем Telegram — ссылка в шапке профиля 👆 (или @stage_style_media)' }}
-          SORT_ORDER: 'random'
-          CLEAN_UNDERSCORES: 'false'
+          IG_HASHTAGS: ${{ secrets.IG_HASHTAGS }}
+          DEFAULT_HASHTAGS: "#reels #reelsinstagram #viral #viralreels #trending #trendingreels #explore #explorepage #fyp #foryou #instagood #mood #dance #dancing #dancevideo #dancereels #dancevibes #moves #choreo #dancechallenge #groove #dancer #lipsync #lipsyncchallenge #singing #songvibes #musicvibes #vibe #soundon #lipdub #trendingaudio #singalong #beauty #beautytips #glam #aesthetic #glowup #pretty #fashion #style #ootd #lookbook #modelvibes #naturalbeauty"
+          RANDOM_HASHTAGS: "true"
+          HASHTAGS_COUNT: "8"
+          IG_FIRST_COMMENT: ${{ secrets.IG_FIRST_COMMENT }}
+          DEFAULT_FIRST_COMMENT: "Больше видео в нашем Telegram — ссылка в шапке профиля 👆 (или @stage_style_media)"
+          SORT_ORDER: "random"
+          CLEAN_UNDERSCORES: "false"
         run: node scripts/autopost.mjs
 
       - name: Commit updated posted_videos.json
