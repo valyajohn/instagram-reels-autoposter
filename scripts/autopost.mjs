@@ -5,21 +5,34 @@ import crypto from 'node:crypto';
 const GRAPH_API = 'https://graph.facebook.com/v21.0';
 const STATE_FILE = path.resolve(process.cwd(), 'posted_videos.json');
 
+const DEFAULT_HASHTAG_POOL = [
+  '#reels', '#reelsinstagram', '#viral', '#viralreels', '#trending', '#trendingreels',
+  '#explore', '#explorepage', '#fyp', '#foryou', '#instagood', '#mood',
+  '#dance', '#dancing', '#dancevideo', '#dancereels', '#dancevibes', '#moves',
+  '#choreo', '#dancechallenge', '#groove', '#dancer',
+  '#lipsync', '#lipsyncchallenge', '#singing', '#songvibes', '#musicvibes', '#vibe',
+  '#soundon', '#lipdub', '#trendingaudio', '#singalong',
+  '#beauty', '#beautytips', '#glam', '#aesthetic', '#glowup', '#pretty',
+  '#fashion', '#style', '#ootd', '#lookbook', '#modelvibes', '#naturalbeauty',
+].join(' ');
+
 const {
   GDRIVE_FOLDER_ID,
   GOOGLE_API_KEY,
   GDRIVE_SERVICE_ACCOUNT_JSON,
   IG_USER_ID,
   IG_ACCESS_TOKEN,
-  IG_HASHTAGS = "",
-  IG_FIRST_COMMENT = "больше  в тг - https://t.me/stage_style_media",
-  SORT_ORDER = "name_asc",
-  CLEAN_UNDERSCORES = "true",
+  IG_HASHTAGS = DEFAULT_HASHTAG_POOL,
+  RANDOM_HASHTAGS = 'true',
+  HASHTAGS_COUNT = '8',
+  IG_FIRST_COMMENT = 'больше  в тг - https://t.me/stage_style_media',
+  SORT_ORDER = 'random',
+  CLEAN_UNDERSCORES = 'false',
 } = process.env;
 
 function assertEnv(name, value) {
   if (!value || !String(value).trim()) {
-    throw new Error(`Отсутствует обязательный секрет / переменная окружения: ${name}`);
+    throw new Error(`Отсутствует обязательная переменная окружения / GitHub Secret: ${name}`);
   }
   return String(value).trim();
 }
@@ -100,7 +113,7 @@ async function listDriveVideos(folderId, auth) {
   });
   const data = await resp.json();
   if (!resp.ok || data.error) {
-    throw new Error(`Ошибка списка Google Drive: ${data.error?.message || resp.status}`);
+    throw new Error(`Ошибка списка файлов Google Drive: ${data.error?.message || resp.status}`);
   }
 
   return (data.files || []).filter(
@@ -122,13 +135,31 @@ async function downloadDriveVideo(fileId, auth) {
     { headers }
   );
   if (!resp.ok) {
-    throw new Error(`Ошибка скачивания видео ${fileId}: HTTP ${resp.status}`);
+    throw new Error(`Не удалось скачать видео ${fileId} из Google Drive (HTTP ${resp.status})`);
   }
   const contentType = resp.headers.get('content-type') || '';
   if (contentType.includes('text/html')) {
-    throw new Error('Google Drive вернул HTML вместо MP4. Проверьте права доступа.');
+    throw new Error('Google Drive вернул HTML вместо видеофайла. Проверьте права доступа.');
   }
   return Buffer.from(await resp.arrayBuffer());
+}
+
+function selectHashtags() {
+  const pool = IG_HASHTAGS.split(/[\s,]+/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map((t) => (t.startsWith('#') ? t : `#${t}`));
+
+  if (pool.length === 0) return '';
+  if (RANDOM_HASHTAGS !== 'true') return pool.join(' ');
+
+  const count = Math.max(1, Math.min(pool.length, Number.parseInt(HASHTAGS_COUNT, 10) || 8));
+  const copy = [...pool];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1);
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, count).join(' ');
 }
 
 function formatCaption(fileName) {
@@ -136,7 +167,7 @@ function formatCaption(fileName) {
   if (CLEAN_UNDERSCORES === 'true') {
     title = title.replace(/_/g, ' ').replace(/\s{2,}/g, ' ').trim();
   }
-  const tags = IG_HASHTAGS.trim();
+  const tags = selectHashtags();
   return tags ? `${title}\n\n${tags}` : title;
 }
 
@@ -177,14 +208,14 @@ async function main() {
         : unposted[0];
 
   if (!nextVideo) {
-    console.log('Новых видео для публикации нет. Все файлы уже опубликованы.');
+    console.log('Новых видео для публикации не найдено. Очередь пуста.');
     return;
   }
 
-  console.log(`Публикуем видео: ${nextVideo.name} (${nextVideo.id})`);
+  console.log(`Найдено видео для публикации: ${nextVideo.name} (${nextVideo.id})`);
   const caption = formatCaption(nextVideo.name);
   const videoBuffer = await downloadDriveVideo(nextVideo.id, auth);
-  console.log(`Видео скачано: ${(videoBuffer.byteLength / (1024 * 1024)).toFixed(2)} МБ`);
+  console.log(`Скачано ${(videoBuffer.byteLength / (1024 * 1024)).toFixed(2)} МБ`);
 
   const createParams = new URLSearchParams({
     media_type: 'REELS',
@@ -214,8 +245,8 @@ async function main() {
   });
 
   if (!uploadResp.ok) {
-    const errText = await uploadResp.text();
-    throw new Error(`Ошибка загрузки бинарного файла в Meta (${uploadResp.status}): ${errText}`);
+    const text = await uploadResp.text();
+    throw new Error(`Ошибка загрузки видео в Meta (${uploadResp.status}): ${text}`);
   }
 
   let statusCode = 'IN_PROGRESS';
@@ -229,12 +260,12 @@ async function main() {
     console.log(`Статус обработки (${i + 1}/36): ${statusCode}`);
     if (statusCode === 'FINISHED') break;
     if (statusCode === 'ERROR' || statusCode === 'EXPIRED') {
-      throw new Error(`Ошибка обработки видео в Instagram: ${JSON.stringify(statusData)}`);
+      throw new Error(`Обработка видео завершилась ошибкой: ${JSON.stringify(statusData)}`);
     }
   }
 
   if (statusCode !== 'FINISHED') {
-    throw new Error(`Таймаут обработки видео: ${statusCode}`);
+    throw new Error(`Таймаут обработки контейнера Reels (${statusCode})`);
   }
 
   const publishParams = new URLSearchParams({
@@ -250,7 +281,7 @@ async function main() {
     throw new Error(`Ошибка публикации Reels: ${JSON.stringify(publishData)}`);
   }
 
-  console.log(`Опубликовано! Instagram Media ID: ${publishData.id}`);
+  console.log(`Опубликовано в Instagram! Media ID: ${publishData.id}`);
 
   if (IG_FIRST_COMMENT && IG_FIRST_COMMENT.trim()) {
     const commentParams = new URLSearchParams({
@@ -263,9 +294,9 @@ async function main() {
     );
     const commentData = await commentResp.json();
     if (!commentResp.ok) {
-      console.warn(`Не удалось оставить первый комментарий: ${JSON.stringify(commentData)}`);
+      console.warn(`Предупреждение: не удалось добавить первый комментарий: ${JSON.stringify(commentData)}`);
     } else {
-      console.log(`Первый комментарий опубликован: ${commentData.id}`);
+      console.log(`Первый комментарий добавлен! Comment ID: ${commentData.id}`);
     }
   }
 
@@ -278,6 +309,7 @@ async function main() {
     publishedAt: new Date().toISOString(),
   });
   writeState(state);
+  console.log('Файл posted_videos.json обновлён.');
 }
 
 main().catch((err) => {
