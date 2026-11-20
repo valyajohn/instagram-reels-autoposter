@@ -38,7 +38,7 @@ jobs:
           RANDOM_HASHTAGS: "true"
           HASHTAGS_COUNT: "8"
           IG_FIRST_COMMENT: ${{ secrets.IG_FIRST_COMMENT }}
-          DEFAULT_FIRST_COMMENT: "Больше видео в нашем Telegram — ссылка в шапке профиля 👆 (или @stage_style_media)"
+          DEFAULT_FIRST_COMMENT: "Больше видео в нашем Telegram — ссылка в шапке профиля 👆 (или stage_style_media)"
           SORT_ORDER: "random"
           CLEAN_UNDERSCORES: "false"
         run: node scripts/autopost.mjs
